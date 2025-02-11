@@ -1,0 +1,16 @@
+{
+    "documents": [
+        {
+            "id": 1,
+            "title": "Confidential Report",
+            "content": "This is a secret document with sensitive information.",
+            "owner": "admin"
+        },
+        {
+            "id": 2,
+            "title": "User Data",
+            "content": "Contains private user information and credentials.",
+            "owner": "admin"
+        }
+    ]
+} 

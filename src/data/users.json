@@ -1,0 +1,22 @@
+{
+    "users": [
+        {
+            "username": "admin",
+            "password": "admin123",
+            "bio": "I am the admin",
+            "avatarUrl": ""
+        },
+        {
+            "username": "Luca",
+            "password": "123"
+        },
+        {
+            "username": "newuser",
+            "password": "1234"
+        },
+        {
+            "username": "dro",
+            "password": "coaie"
+        }
+    ]
+}

@@ -40,3 +40,77 @@ button {
 button:hover {
     background-color: #45a049;
 }
+
+.tabs {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: #ddd;
+    cursor: pointer;
+}
+
+.tab-btn.active {
+    background: #4CAF50;
+    color: white;
+}
+
+.form-section {
+    transition: all 0.3s ease;
+}
+
+.dashboard-container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    max-width: 500px;
+    width: 90%;
+}
+
+.profile-section, .documents-section, .search-section {
+    margin: 20px 0;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.document {
+    margin: 10px 0;
+    padding: 10px;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+.user-result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+    padding: 10px;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+#userBio {
+    width: 100%;
+    height: 100px;
+    margin: 10px 0;
+    padding: 8px;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+#searchQuery {
+    width: 70%;
+    margin-right: 10px;
+}

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <h2>Welcome to Your Dashboard!</h2>
+        
+        <!-- Profile Section -->
+        <div class="profile-section">
+            <h3>Your Profile</h3>
+            <div id="profile">
+                <img id="avatarImage" src="/images/default-avatar.png" alt="Profile Picture" width="100">
+                <div id="userInfo"></div>
+            </div>
+            
+            <form id="profileForm" class="form-group">
+                <input type="text" id="avatarUrl" placeholder="Profile Picture URL">
+                <textarea id="userBio" placeholder="Tell us about yourself"></textarea>
+                <button type="submit">Update Profile</button>
+            </form>
+        </div>
+
+        <!-- Documents Section -->
+        <div class="documents-section">
+            <h3>Your Documents</h3>
+            <div id="documentsList"></div>
+        </div>
+
+        <!-- User Search - Vulnerable to XSS -->
+        <div class="search-section">
+            <h3>Search Users</h3>
+            <input type="text" id="searchQuery" placeholder="Search users...">
+            <button onclick="searchUsers()">Search</button>
+            <div id="searchResults"></div>
+        </div>
+
+        <div class="button-group">
+            <button onclick="window.location.href='/admin'">Admin Panel</button>
+            <button onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <script src="/js/dashboard.js"></script>
+</body>
+</html> 
