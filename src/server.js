@@ -1,16 +1,20 @@
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
+const sqlite3 = require('sqlite3').verbose();
 const app = express();
-const port = 3000;
+const port = 3001; // Change the port number
 
 // Middleware to parse JSON bodies
 app.use(express.json());
 app.use(express.static('src/public'));
 
-// Path to users.json
-const usersFilePath = path.join(__dirname, 'data', 'users.json');
-const documentsFilePath = path.join(__dirname, 'data', 'documents.json');
+// Initialize SQLite database
+const db = new sqlite3.Database(':memory:');
+
+// Create users table
+db.serialize(() => {
+    db.run("CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT, password TEXT, bio TEXT, avatarUrl TEXT)");
+});
 
 // Serve the main login page
 app.get('/', (req, res) => {
@@ -31,44 +35,43 @@ app.get('/admin', (req, res) => {
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     
-    try {
-        // Read users from JSON file
-        const userData = JSON.parse(fs.readFileSync(usersFilePath, 'utf8'));
-        
-        const user = userData.users.find(u => 
-            u.username === username && u.password === password
-        );
+    db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password], (err, user) => {
+        if (err) {
+            console.error('Login error:', err);
+            return res.status(500).json({ success: false, message: 'Server error during login' });
+        }
         
         if (user) {
             res.json({ success: true, message: 'Login successful!' });
         } else {
             res.status(401).json({ success: false, message: 'Invalid credentials!' });
         }
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ success: false, message: 'Server error during login' });
-    }
+    });
 });
 
 // Register endpoint
 app.post('/api/register', (req, res) => {
     const { username, password } = req.body;
     
-    // Read current users
-    const userData = JSON.parse(fs.readFileSync(usersFilePath, 'utf8'));
-    
-    // Check if username already exists
-    if (userData.users.some(u => u.username === username)) {
-        return res.status(400).json({ success: false, message: 'Username already exists!' });
-    }
-    
-    // Add new user
-    userData.users.push({ username, password });
-    
-    // Save back to file
-    fs.writeFileSync(usersFilePath, JSON.stringify(userData, null, 4));
-    
-    res.json({ success: true, message: 'Registration successful!' });
+    db.get("SELECT * FROM users WHERE username = ?", [username], (err, user) => {
+        if (err) {
+            console.error('Registration error:', err);
+            return res.status(500).json({ success: false, message: 'Server error during registration' });
+        }
+        
+        if (user) {
+            return res.status(400).json({ success: false, message: 'Username already exists!' });
+        }
+        
+        db.run("INSERT INTO users (username, password) VALUES (?, ?)", [username, password], (err) => {
+            if (err) {
+                console.error('Registration error:', err);
+                return res.status(500).json({ success: false, message: 'Server error during registration' });
+            }
+            
+            res.json({ success: true, message: 'Registration successful!' });
+        });
+    });
 });
 
 app.listen(port, () => {
@@ -77,16 +80,26 @@ app.listen(port, () => {
 
 // Vulnerable admin endpoint - no proper authentication
 app.get('/api/users', (req, res) => {
-    const userData = JSON.parse(fs.readFileSync(usersFilePath, 'utf8'));
-    res.json(userData.users);
+    db.all("SELECT * FROM users", (err, users) => {
+        if (err) {
+            console.error('Error fetching users:', err);
+            return res.status(500).json({ success: false, message: 'Server error' });
+        }
+        
+        res.json(users);
+    });
 });
 
 // Vulnerable to SQL Injection (if using a database) and IDOR
 app.delete('/api/users/:id', (req, res) => {
-    const userData = JSON.parse(fs.readFileSync(usersFilePath, 'utf8'));
-    userData.users = userData.users.filter((_, index) => index !== parseInt(req.params.id));
-    fs.writeFileSync(usersFilePath, JSON.stringify(userData, null, 4));
-    res.json({ success: true });
+    db.run("DELETE FROM users WHERE id = ?", [req.params.id], (err) => {
+        if (err) {
+            console.error('Error deleting user:', err);
+            return res.status(500).json({ success: false, message: 'Server error' });
+        }
+        
+        res.json({ success: true });
+    });
 });
 
 // Vulnerable to SSRF
@@ -113,28 +126,25 @@ app.get('/api/documents/:id', (req, res) => {
 // Profile update endpoint - vulnerable to XSS and CSRF
 app.post('/api/profile/update', (req, res) => {
     const { username, avatarUrl, bio } = req.body;
-    const userData = JSON.parse(fs.readFileSync(usersFilePath, 'utf8'));
-    const userIndex = userData.users.findIndex(u => u.username === username);
-    
-    if (userIndex !== -1) {
-        userData.users[userIndex] = {
-            ...userData.users[userIndex],
-            avatarUrl,
-            bio
-        };
-        fs.writeFileSync(usersFilePath, JSON.stringify(userData, null, 4));
+    db.run("UPDATE users SET avatarUrl = ?, bio = ? WHERE username = ?", [avatarUrl, bio, username], (err) => {
+        if (err) {
+            console.error('Error updating profile:', err);
+            return res.status(500).json({ success: false, message: 'Server error' });
+        }
+        
         res.json({ success: true, message: 'Profile updated!' });
-    } else {
-        res.status(404).json({ success: false, message: 'User not found' });
-    }
+    });
 });
 
 // User search - vulnerable to NoSQL injection
 app.get('/api/users/search', (req, res) => {
     const { query } = req.query;
-    const userData = JSON.parse(fs.readFileSync(usersFilePath, 'utf8'));
-    const users = userData.users.filter(u => 
-        u.username.includes(query) || u.bio?.includes(query)
-    );
-    res.json(users);
+    db.all("SELECT * FROM users WHERE username LIKE ? OR bio LIKE ?", [`%${query}%`, `%${query}%`], (err, users) => {
+        if (err) {
+            console.error('Error searching users:', err);
+            return res.status(500).json({ success: false, message: 'Server error' });
+        }
+        
+        res.json(users);
+    });
 });

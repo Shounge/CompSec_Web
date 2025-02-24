@@ -12,11 +12,9 @@
         },
         {
             "username": "newuser",
-            "password": "1234"
-        },
-        {
-            "username": "dro",
-            "password": "coaie"
+            "password": "1234",
+            "avatarUrl": "",
+            "bio": "I am testing this!"
         }
     ]
 }
