@@ -4,12 +4,14 @@ import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
+import rateLimit from 'express-rate-limit';
 
 const app = express();
 const port = 3001; // Change the port number
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const documentsFilePath = path.join(__dirname, 'data', 'documents.json');
 
 // Middleware to parse JSON bodies
 app.use(express.json());
@@ -17,12 +19,19 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static('src/public'));
 
 // Initialize SQLite database
-const db = new sqlite3.Database(':memory:');
+const db = new sqlite3.Database('database.sqlite');
 
 // Create users table
 db.serialize(() => {
-    db.run("CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT, password TEXT, bio TEXT, avatarUrl TEXT)");
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY, 
+        username TEXT, 
+        password TEXT, 
+        bio TEXT, 
+        avatarUrl TEXT
+    )`);
 });
+
 
 // Serve the main login page
 app.get('/', (req, res) => {
@@ -39,8 +48,15 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
+// Rate Limiting: 5 attempts per 15 minutes
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { success: false, message: "Too many requests from this IP, please try again after 15 minutes" }
+});
+
 // Login endpoint
-app.post('/api/login', (req, res) => {
+app.post('/api/login', limiter, (req, res) => {
     const { username, password } = req.body;
     
     db.get("SELECT * FROM users WHERE username = ? AND password = ?", [username, password], (err, user) => {
@@ -50,8 +66,12 @@ app.post('/api/login', (req, res) => {
         }
         
         if (user) {
+            console.log(`User ${username} logged in successfully.`);
+            console.log(`Password: ${password}`);
             res.json({ success: true, message: 'Login successful!' });
         } else {
+            console.warn(`Failed login attempt for user ${sanitizeLogInput(username)}`);
+            console.log(`Password: ${sanitizeLogInput(password)}`);
             res.status(401).json({ success: false, message: 'Invalid credentials!' });
         }
     });
@@ -166,6 +186,11 @@ app.get('/api/users/search', (req, res) => {
         res.json(users);
     });
 });
+
+function sanitizeLogInput(input) {
+    return input ? input.replace(/[\n\r\t]/g, ' ').trim() : 'undefined';
+}
+
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
