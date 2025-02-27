@@ -1,11 +1,19 @@
-const express = require('express');
-const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
+import fetch from 'node-fetch';
+import express from 'express';
+import sqlite3 from 'sqlite3';
+import { fileURLToPath } from 'url';
+import path from 'path';
+import fs from 'fs';
+
 const app = express();
 const port = 3001; // Change the port number
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // Middleware to parse JSON bodies
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static('src/public'));
 
 // Initialize SQLite database
@@ -74,10 +82,6 @@ app.post('/api/register', (req, res) => {
     });
 });
 
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
-});
-
 // Vulnerable admin endpoint - no proper authentication
 app.get('/api/users', (req, res) => {
     db.all("SELECT * FROM users", (err, users) => {
@@ -102,14 +106,28 @@ app.delete('/api/users/:id', (req, res) => {
     });
 });
 
-// Vulnerable to SSRF
-app.post('/api/fetch-avatar', (req, res) => {
-    const { url } = req.body;
-    fetch(url)
-        .then(response => response.text())
-        .then(data => res.send(data))
-        .catch(error => res.status(500).json({ error: error.message }));
+// Vulnerable to SSRF : Fetches data from any URL provided by the user
+const allowedHosts = ["example.com", "api.example.com"];
+
+app.get('/api/fetch', async (req, res) => {
+    const { url } = req.query;
+
+    try {
+        const parsedUrl = new URL(url);
+        if (!allowedHosts.includes(parsedUrl.hostname)) {
+            return res.status(403).json({ error: "Forbidden URL" });
+        }
+
+        const response = await fetch(url);
+        const data = await response.text();
+        res.send(data);
+    } catch (error) {
+        res.status(400).json({ error: "Invalid request" });
+    }
 });
+
+
+
 
 // Document endpoints - vulnerable to IDOR
 app.get('/api/documents/:id', (req, res) => {
@@ -147,4 +165,8 @@ app.get('/api/users/search', (req, res) => {
         
         res.json(users);
     });
+});
+
+app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
 });
